@@ -23,15 +23,12 @@ func NewPostgresStore() (*PostgresStore, error) {
 	connStr := "user=postgres dbname=postgres password=gobank port=5432 sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		fmt.Println("Error: ", err)
 		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
-		fmt.Println("Error: ", err)
 		return nil, err
 	}
-	fmt.Println("before return")
 	return &PostgresStore{db: db}, nil
 }
 
@@ -111,5 +108,23 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 }
 
 func (s *PostgresStore) GetAccountById(id int) (*Account, error) {
-	return nil, nil
+	rows, err := s.db.Query("select * from account where id = $1", id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		account := new(Account)
+		err := rows.Scan(
+			&account.ID,
+			&account.FirstName,
+			&account.LastName,
+			&account.Number,
+			&account.Balance,
+			&account.CreatedAt)
+
+		return account, err
+	}
+	return nil, fmt.Errorf("account %d not found", id)
 }

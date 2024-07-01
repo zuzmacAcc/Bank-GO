@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -60,10 +61,17 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 func (s *APIServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error {
 	id := mux.Vars(r)["id"]
 
-	fmt.Println(id)
-	// account := NewAccount("John", "Doe")
+	intValue, err := strconv.Atoi(id)
+	if err != nil {
+		return err
+	}
 
-	return WriteJSON(w, http.StatusOK, &Account{})
+	account, err := s.store.GetAccountById(intValue)
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, account)
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
