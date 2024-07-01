@@ -50,11 +50,12 @@ func (s *PostgresStore) createAccountTable() error {
 }
 
 
-func (s *PostgresStore) CreateAccount(a *Account) error {
+func (s *PostgresStore) CreateAccount(acc *Account) error {
+
 	return nil
 }
 
-func (s *PostgresStore) UpdateAccount(a *Account) error {
+func (s *PostgresStore) UpdateAccount(*Account) error {
 	return nil
 }
 
