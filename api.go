@@ -113,7 +113,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, acc)//map[string]int{"deleted": id})
+	return WriteJSON(w, http.StatusOK, map[string]*Account{"deleted": acc}) //map[string]int{"deleted": id})
 }
 
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
