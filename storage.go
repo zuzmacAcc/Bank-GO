@@ -77,8 +77,9 @@ func (s *PostgresStore) UpdateAccount(*Account) error {
 }
 
 func (s *PostgresStore) DeleteAccount(id int) error {
-	query, err := s.db.Query("delete from account where id = $1", id)
-	fmt.Println(query)
+
+	_, err := s.db.Query("delete from account where id = $1", id)
+	
 	return err
 }
 

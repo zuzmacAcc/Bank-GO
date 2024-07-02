@@ -26,7 +26,7 @@ func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandlerFunc(s.handleGetAccountById))
+	router.HandleFunc("/account/{id}", makeHTTPHandlerFunc(s.handleAccountById))
 
 	log.Println("JSON API server is running on port: ", s.listenAddr)
 
@@ -45,6 +45,33 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	return fmt.Errorf("unsupported method")
 }
 
+func (s *APIServer) handleAccountById(w http.ResponseWriter, r *http.Request) error {
+
+	if r.Method == "GET" {
+		return s.handleGetAccountById(w, r)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleDeleteAccount(w, r)
+	}
+
+	return fmt.Errorf("unsupported method %s", r.Method)
+}
+
+func (s *APIServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	account, err := s.store.GetAccountById(id)
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, account)
+}
+
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
 	accounts, err := s.store.GetAccounts()
 
@@ -53,28 +80,6 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 	}
 
 	return WriteJSON(w, http.StatusOK, accounts)
-}
-
-func (s *APIServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		account, err := s.store.GetAccountById(id)
-		if err != nil {
-			return err
-		}
-
-		return WriteJSON(w, http.StatusOK, account)
-	}
-
-	if r.Method == "DELETE" {
-		return s.handleDeleteAccount(w, r)
-	}
-
-	return fmt.Errorf("unsupported method %s", r.Method)
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -93,15 +98,21 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)
-	fmt.Println(id)
+
 	if err != nil {
 		return err
 	}
+
+	acc, err := s.store.GetAccountById(id)
+	if err != nil {
+		return err
+	}
+
 	if err := s.store.DeleteAccount(id); err != nil {
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
+	return WriteJSON(w, http.StatusOK, acc)//map[string]int{"deleted": id})
 }
 
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
