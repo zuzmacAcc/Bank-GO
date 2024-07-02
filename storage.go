@@ -20,7 +20,7 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=postgres password=gobank port=5432 sslmode=disable"
+	connStr := "user=postgres dbname=go-bank password=gobank port=5432 sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,9 @@ func (s *PostgresStore) UpdateAccount(*Account) error {
 }
 
 func (s *PostgresStore) DeleteAccount(id int) error {
-	return nil
+	query, err := s.db.Query("delete from account where id = $1", id)
+	fmt.Println(query)
+	return err
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
@@ -88,15 +90,9 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	}
 
 	accounts := []*Account{}
+
 	for rows.Next() {
-		account := new(Account)
-		err := rows.Scan(
-			&account.ID,
-			&account.FirstName,
-			&account.LastName,
-			&account.Number,
-			&account.Balance,
-			&account.CreatedAt)
+		account, err := scanIntoAccount(rows)
 
 		if err != nil {
 			return nil, err
@@ -115,16 +111,27 @@ func (s *PostgresStore) GetAccountById(id int) (*Account, error) {
 	}
 
 	for rows.Next() {
-		account := new(Account)
-		err := rows.Scan(
-			&account.ID,
-			&account.FirstName,
-			&account.LastName,
-			&account.Number,
-			&account.Balance,
-			&account.CreatedAt)
+		account, err := scanIntoAccount(rows)
 
-		return account, err
+		if err != nil {
+			return nil, err
+		}
+
+		return account, nil
 	}
+
 	return nil, fmt.Errorf("account %d not found", id)
+}
+
+func scanIntoAccount(rows *sql.Rows) (*Account, error) {
+	account := new(Account)
+	err := rows.Scan(
+		&account.ID,
+		&account.FirstName,
+		&account.LastName,
+		&account.Number,
+		&account.Balance,
+		&account.CreatedAt)
+
+	return account, err
 }
