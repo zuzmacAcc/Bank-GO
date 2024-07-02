@@ -3,6 +3,7 @@ module github.com/zuzmacAcc/Bank-GO
 go 1.22.4
 
 require (
-	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/lib/pq v1.10.9 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/gorilla/mux v1.8.1
+	github.com/lib/pq v1.10.9
 )

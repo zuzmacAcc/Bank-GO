@@ -54,7 +54,7 @@ func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 	query := `insert into account
 	(first_name, last_name, number, balance, created_at)
 	values ($1, $2, $3, $4, $5)`
-	fmt.Println(acc)
+
 	_, err := s.db.Query(
 		query,
 		acc.FirstName,
