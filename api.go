@@ -29,6 +29,7 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/login", makeHTTPHandlerFunc(s.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandlerFunc(s.handleAccountById), s.store))
 	router.HandleFunc("/transfer", makeHTTPHandlerFunc(s.handleTransfer))
@@ -36,6 +37,33 @@ func (s *APIServer) Run() {
 	log.Println("JSON API server is running on port: ", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
+}
+
+// tokenString, err := createJWT(account)
+// if err != nil {
+// 	return err
+// }
+
+// fmt.Println("JWT token: ", tokenString)
+
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("method not allowed %s", r.Method)
+	}
+
+	var request LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return err
+	}
+
+	acc, err := s.store.GetAccountByNumber(int(request.Number))
+	if err != nil {
+		return err
+	}
+//491253
+	fmt.Printf("%+v\n", acc)
+
+	return WriteJSON(w, http.StatusOK, request)
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -92,21 +120,16 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
 		return err
 	}
-	account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
-
-	tokenString, err := createJWT(account)
+	account, err := NewAccount(createAccountReq.FirstName, createAccountReq.LastName, createAccountReq.Password)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("JWT token: ", tokenString)
-
-	accountCreated, err := s.store.CreateAccount(account)
-	if err != nil {
+	if err := s.store.CreateAccount(account); err != nil {
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, accountCreated)
+	return WriteJSON(w, http.StatusOK, account)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -165,8 +188,6 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 		fmt.Println("calling JWT auth middleware")
 
 		tokenString := r.Header.Get("x-jwt-token")
-		// fmt.Println(tokenString)
-
 		token, err := validateJWT(tokenString)
 
 		if err != nil {
@@ -214,7 +235,7 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
