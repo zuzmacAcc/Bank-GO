@@ -10,10 +10,10 @@ import (
 type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
-	UpdateAccount(*Account) error
 	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
 	GetAccountByNumber(int) (*Account, error)
+	GetAccountByName(string, string) (bool, error)
 	Deposit(int, int) error
 	Transfer(int, int, int) error
 }
@@ -96,17 +96,13 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 	// return nil, fmt.Errorf("account %s %s not found", acc.FirstName, acc.LastName)
 }
 
-func (s *PostgresStore) UpdateAccount(*Account) error {
-	return nil
-}
-
-func (s* PostgresStore) Transfer(amount, toAccount, id int) error {
+func (s *PostgresStore) Transfer(amount, toAccount, id int) error {
 	doubleUpdate(s.db, amount, toAccount, id)
 
 	return nil
 }
 
-func (s* PostgresStore) Deposit(amount, id int) error {
+func (s *PostgresStore) Deposit(amount, id int) error {
 	query := `update account set balance = balance + $1 where id = $2`
 
 	_, err := s.db.Query(query, amount, id)
@@ -137,6 +133,28 @@ func (s *PostgresStore) GetAccountByNumber(number int) (*Account, error) {
 	}
 
 	return nil, fmt.Errorf("accoun with number <%d> not found", number)
+}
+
+func (s *PostgresStore) GetAccountByName(firstName, lastName string) (bool, error) {
+	rows, err := s.db.Query("select * from account where first_name = $1 and last_name = $2", firstName, lastName)
+
+	if err != nil {
+		return false, err
+	}
+
+	for rows.Next() {
+		account, err := scanIntoAccount(rows)
+
+		if err != nil {
+			return false, err
+		}
+
+		if account.FirstName == firstName && account.LastName == lastName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
@@ -197,32 +215,32 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 func doubleUpdate(db *sql.DB, amount, toAccount, id int) error {
 	tx, err := db.Begin()
 	if err != nil {
-			return err
+		return err
 	}
 
 	stmt, err := tx.Prepare(`update account set balance = balance - $1 where id = $2;`)
 	if err != nil {
-			tx.Rollback()
-			return err
+		tx.Rollback()
+		return err
 	}
 	defer stmt.Close()
 
 	if _, err := stmt.Exec(amount, id); err != nil {
-			tx.Rollback() // return an error too, we may want to wrap them
-			return err
+		tx.Rollback() // return an error too, we may want to wrap them
+		return err
 	}
 
 	stmt2, err := tx.Prepare(`update account set balance = balance + $1 where number = $2;`)
 	if err != nil {
-			tx.Rollback()
-			return err
+		tx.Rollback()
+		return err
 	}
 
 	defer stmt2.Close()
 
 	if _, err := stmt2.Exec(amount, toAccount); err != nil {
-			tx.Rollback() // return an error too, we may want to wrap them
-			return err
+		tx.Rollback() // return an error too, we may want to wrap them
+		return err
 	}
 
 	return tx.Commit()

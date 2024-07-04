@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	validator "github.com/go-playground/validator/v10"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 )
@@ -121,12 +122,35 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 	return WriteJSON(w, http.StatusOK, accounts)
 }
 
+func (cr *CreateAccountRequest) validate() error {
+	validate := validator.New()
+	return validate.Struct(cr)
+}
+
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	createAccountReq := new(CreateAccountRequest)
+
 	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
 		return err
 	}
+
+	err := createAccountReq.validate()
+	if err != nil {
+		var errorMessages string
+		for _, err := range err.(validator.ValidationErrors) {
+			errorMessages += fmt.Sprintf("Field '%s' failed on the '%s' tag; ", err.Field(), err.Tag())
+		}
+		return fmt.Errorf(errorMessages)
+	}
+
+	if accountExists, err := s.store.GetAccountByName(createAccountReq.FirstName, createAccountReq.LastName); err != nil {
+		return err
+	} else if accountExists {
+		return fmt.Errorf("account already exists")
+	}
+
 	account, err := NewAccount(createAccountReq.FirstName, createAccountReq.LastName, createAccountReq.Password)
+	fmt.Printf("%+v", createAccountReq)
 	if err != nil {
 		return err
 	}
@@ -202,18 +226,17 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 	}
 
 	acc, err := s.store.GetAccountById(id)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
-	if acc.Balance < int64(transferReq.Amount){
+	if acc.Balance < int64(transferReq.Amount) {
 		return fmt.Errorf("insufficient funds fot this transfer")
 	}
 
 	if err := s.store.Transfer(transferReq.Amount, transferReq.ToAccount, id); err != nil {
 		return err
 	}
-
 
 	return WriteJSON(w, http.StatusOK, transferReq)
 }

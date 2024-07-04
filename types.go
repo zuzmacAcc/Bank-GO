@@ -28,9 +28,9 @@ type DepositRequest struct {
 }
 
 type CreateAccountRequest struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Password  string `json:"password"`
+	FirstName string `json:"firstName" validate:"required"`
+	LastName  string `json:"lastName" validate:"required"`
+	Password  string `json:"password" validate:"required"`
 }
 
 type Account struct {
