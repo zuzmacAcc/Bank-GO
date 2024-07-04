@@ -109,7 +109,6 @@ func (s* PostgresStore) Transfer(amount, toAccount, id int) error {
 func (s* PostgresStore) Deposit(amount, id int) error {
 	query := `update account set balance = balance + $1 where id = $2`
 
-
 	_, err := s.db.Query(query, amount, id)
 
 	if err != nil {

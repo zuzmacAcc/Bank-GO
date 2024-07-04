@@ -201,6 +201,15 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
+	acc, err := s.store.GetAccountById(id)
+	if err != nil{
+		return err
+	}
+
+	if acc.Balance < int64(transferReq.Amount){
+		return fmt.Errorf("insufficient funds fot this transfer")
+	}
+
 	if err := s.store.Transfer(transferReq.Amount, transferReq.ToAccount, id); err != nil {
 		return err
 	}
