@@ -39,13 +39,6 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
-// tokenString, err := createJWT(account)
-// if err != nil {
-// 	return err
-// }
-
-// fmt.Println("JWT token: ", tokenString)
-
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return fmt.Errorf("method not allowed %s", r.Method)
@@ -60,10 +53,22 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-//491253
-	fmt.Printf("%+v\n", acc)
 
-	return WriteJSON(w, http.StatusOK, request)
+	if !acc.ValidatePassword(request.Password) {
+		return fmt.Errorf("not authenticated")
+	}
+
+	token, err := createJWT(acc)
+	if err != nil {
+		return err
+	}
+
+	resp := LoginResponse{
+		Token:  token,
+		Number: acc.Number,
+	}
+
+	return WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -179,9 +184,6 @@ func createJWT(account *Account) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjoyMzQyNzksImV4cGlyZXNBdCI6MTUxNjIzOTAyMn0.kS-yLLFgSY8lEQZLeu5JWMosgngl-lFs0jRT1O37uvc - 13
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjo5MTgyMzMsImV4cGlyZXNBdCI6MTUxNjIzOTAyMn0.uofOzKVNXHbNaiLLls30ZPL8R8y42_EowJVSXzoIx4U - 14
-
 func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +232,6 @@ func permissionDenied(w http.ResponseWriter) {
 
 func validateJWT(tokenString string) (*jwt.Token, error) {
 	secret := os.Getenv("JWT_SECRET")
-	fmt.Println(secret)
 
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
