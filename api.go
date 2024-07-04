@@ -32,7 +32,7 @@ func (s *APIServer) Run() {
 	router.HandleFunc("/login", makeHTTPHandlerFunc(s.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandlerFunc(s.handleAccountById), s.store))
-	router.HandleFunc("/transfer", makeHTTPHandlerFunc(s.handleTransfer))
+	router.HandleFunc("/transfer/{id}", withJWTAuth(makeHTTPHandlerFunc(s.handleTransfer), s.store))
 	router.HandleFunc("/deposit/{id}", withJWTAuth(makeHTTPHandlerFunc(s.handleDeposit), s.store))
 
 	log.Println("JSON API server is running on port: ", s.listenAddr)
@@ -158,7 +158,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handleDeposit(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
+	if r.Method != "PUT" {
 		return fmt.Errorf("method not allowed %s", r.Method)
 	}
 
@@ -186,11 +186,25 @@ func (s *APIServer) handleDeposit(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "PUT" {
+		return fmt.Errorf("method not allowed %s", r.Method)
+	}
+
+	id, err := getID(r)
+
+	if err != nil {
+		return err
+	}
+
 	transferReq := new(TransferRequest)
 	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
 		return err
 	}
-	defer r.Body.Close()
+
+	if err := s.store.Transfer(transferReq.Amount, transferReq.ToAccount, id); err != nil {
+		return err
+	}
+
 
 	return WriteJSON(w, http.StatusOK, transferReq)
 }

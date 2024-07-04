@@ -15,6 +15,7 @@ type Storage interface {
 	GetAccountById(int) (*Account, error)
 	GetAccountByNumber(int) (*Account, error)
 	Deposit(int, int) error
+	Transfer(int, int, int) error
 }
 
 type PostgresStore struct {
@@ -99,10 +100,15 @@ func (s *PostgresStore) UpdateAccount(*Account) error {
 	return nil
 }
 
+func (s* PostgresStore) Transfer(amount, toAccount, id int) error {
+	doubleUpdate(s.db, amount, toAccount, id)
+
+	return nil
+}
+
 func (s* PostgresStore) Deposit(amount, id int) error {
 	query := `update account set balance = balance + $1 where id = $2`
-	
-	fmt.Printf("depositing %d to account %d\n", amount, id)
+
 
 	_, err := s.db.Query(query, amount, id)
 
@@ -187,4 +193,38 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 		&account.CreatedAt)
 
 	return account, err
+}
+
+func doubleUpdate(db *sql.DB, amount, toAccount, id int) error {
+	tx, err := db.Begin()
+	if err != nil {
+			return err
+	}
+
+	stmt, err := tx.Prepare(`update account set balance = balance - $1 where id = $2;`)
+	if err != nil {
+			tx.Rollback()
+			return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(amount, id); err != nil {
+			tx.Rollback() // return an error too, we may want to wrap them
+			return err
+	}
+
+	stmt2, err := tx.Prepare(`update account set balance = balance + $1 where number = $2;`)
+	if err != nil {
+			tx.Rollback()
+			return err
+	}
+
+	defer stmt2.Close()
+
+	if _, err := stmt2.Exec(amount, toAccount); err != nil {
+			tx.Rollback() // return an error too, we may want to wrap them
+			return err
+	}
+
+	return tx.Commit()
 }
