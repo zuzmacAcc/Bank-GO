@@ -14,6 +14,7 @@ type Storage interface {
 	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
 	GetAccountByNumber(int) (*Account, error)
+	Deposit(int, int) error
 }
 
 type PostgresStore struct {
@@ -95,6 +96,20 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 }
 
 func (s *PostgresStore) UpdateAccount(*Account) error {
+	return nil
+}
+
+func (s* PostgresStore) Deposit(amount, id int) error {
+	query := `update account set balance = balance + $1 where id = $2`
+	
+	fmt.Printf("depositing %d to account %d\n", amount, id)
+
+	_, err := s.db.Query(query, amount, id)
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

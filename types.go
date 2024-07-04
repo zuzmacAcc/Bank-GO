@@ -22,6 +22,11 @@ type TransferRequest struct {
 	Amount    int `json:"amount"`
 }
 
+type DepositRequest struct {
+	Amount int `json:"amount"`
+	// Number int64  `json:"number"`
+}
+
 type CreateAccountRequest struct {
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
